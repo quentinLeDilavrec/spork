@@ -13,43 +13,14 @@ import daiquiri
 
 from . import gitutils
 from . import fileutils
+from . import containers as conts
 
 LOGGER = daiquiri.getLogger(__name__)
 
 
-class MergeOutcome:
-    CONFLICT = "conflict"
-    SUCCESS = "success"
-    FAIL = "fail"
-
-
-@dataclasses.dataclass(frozen=True)
-class MergeResult:
-    merge_dir: pathlib.Path
-    merge_file: pathlib.Path
-    base_file: pathlib.Path
-    left_file: pathlib.Path
-    right_file: pathlib.Path
-    expected_file: pathlib.Path
-    merge_cmd: str
-    outcome: MergeOutcome
-    runtime: int
-
-
-GitMergeResult = collections.namedtuple(
-    "GitMergeResult",
-    "merge_commit base_commit left_commit right_commit merge_ok build_ok",
-)
-
-RuntimeResult = collections.namedtuple(
-    "RuntimeResult",
-    "merge_commit base_blob left_blob right_blob parse_time_ms merge_time_ms total_time_ms merge_cmd".split(),
-)
-
-
 def run_file_merges(
     file_merge_dirs: List[pathlib.Path], merge_cmd: str
-) -> Iterable[MergeResult]:
+) -> Iterable[conts.MergeResult]:
     """Run the file merges in the provided directories and put the output in a file called `merge_cmd`.java.
 
     Args:
@@ -59,7 +30,7 @@ def run_file_merges(
         merge_cmd: The merge command to execute. Will be called as
             `merge_cmd Left.java Base.java Right.java -o merge_cmd.java`.
     Returns:
-        A generator that yields one MergeResult per merge directory.
+        A generator that yields one conts.MergeResult per merge directory.
     """
     for merge_result, _ in _run_file_merges(file_merge_dirs, merge_cmd):
         yield merge_result
@@ -71,7 +42,12 @@ def _run_file_merges(file_merge_dirs: List[pathlib.Path], merge_cmd: str) -> Ite
         filenames = [f.name for f in merge_dir.iterdir() if f.is_file()]
 
         def get_filename(prefix: str) -> str:
-            matches = [name for name in filenames if name.startswith(prefix)]
+            matches = [
+                name
+                for name in filenames
+                if name.startswith(prefix)
+                and not name.endswith(fileutils.NORMALIZED_FILE_SUFFIX)
+            ]
             assert len(matches) == 1
             return matches[0]
 
@@ -95,7 +71,7 @@ def _run_file_merges(file_merge_dirs: List[pathlib.Path], merge_cmd: str) -> Ite
             expected=expected,
             merge=merge_file,
         )
-        yield MergeResult(
+        yield conts.MergeResult(
             merge_dir=merge_dir,
             merge_file=merge_file,
             base_file=base,
@@ -117,26 +93,26 @@ def _run_file_merge(scenario_dir, merge_cmd, base, left, right, expected, merge)
 
     if not merge.is_file():
         LOGGER.error(
-            f"{merge_cmd} failed to produce a Merge.java file on {scenario_dir.parent.name}/{scenario_dir.name}"
+            f"{merge_cmd} failed to produce a merge file on {scenario_dir.parent.name}/{scenario_dir.name}"
         )
         LOGGER.info(proc.stdout.decode(sys.getdefaultencoding()))
         LOGGER.info(proc.stderr.decode(sys.getdefaultencoding()))
-        return MergeOutcome.FAIL, runtime, proc
+        return conts.MergeOutcome.FAIL, runtime, proc
     elif proc.returncode != 0:
         LOGGER.warning(
             f"Merge conflict in {scenario_dir.parent.name}/{scenario_dir.name}"
         )
-        return MergeOutcome.CONFLICT, runtime, proc
+        return conts.MergeOutcome.CONFLICT, runtime, proc
     else:
         LOGGER.info(
             f"Successfully merged {scenario_dir.parent.name}/{scenario_dir.name}"
         )
-        return MergeOutcome.SUCCESS, runtime, proc
+        return conts.MergeOutcome.SUCCESS, runtime, proc
 
 
 def run_git_merges(
-    merge_scenarios: List[gitutils.MergeScenario], repo: git.Repo, build: bool = False
-) -> Iterable[GitMergeResult]:
+    merge_scenarios: List[conts.MergeScenario], repo: git.Repo, build: bool = False
+) -> Iterable[conts.GitMergeResult]:
     """Replay the provided merge scenarios using git-merge. Assumes that the
     merge scenarios belong to the provided repo. The merge tool to use must be
     configured in .gitattributes and .gitconfig, see the README at
@@ -150,13 +126,13 @@ def run_git_merges(
         An iterable of merge results.
     """
     for ms in merge_scenarios:
-        LOGGER.info(f"Running scenario {ms.result.hexsha}")
+        LOGGER.info(f"Running scenario {ms.expected.hexsha}")
         yield run_git_merge(ms, repo, build)
 
 
 def run_git_merge(
-    merge_scenario: gitutils.MergeScenario, repo: git.Repo, build: bool
-) -> GitMergeResult:
+    merge_scenario: conts.MergeScenario, repo: git.Repo, build: bool
+) -> conts.GitMergeResult:
     """Replay a single merge scenario. Assumes that the merge scenario belongs
     to the provided repo. The merge tool to use must be configured in
     .gitattributes and .gitconfig, see the README at
@@ -176,8 +152,8 @@ def run_git_merge(
             fileutils.mvn_compile(workdir=repo.working_tree_dir) if build else False
         )
 
-    return GitMergeResult(
-        merge_commit=ms.result.hexsha,
+    return conts.GitMergeResult(
+        merge_commit=ms.expected.hexsha,
         merge_ok=merge_ok,
         build_ok=build_ok,
         base_commit=ms.base.hexsha,
@@ -202,10 +178,10 @@ def is_buildable(commit_sha: str, repo: git.Repo) -> bool:
 
 def runtime_benchmark(
     file_merge_dirs: List[pathlib.Path], merge_cmd: str, repeats: int
-) -> Iterable[RuntimeResult]:
+) -> Iterable[conts.RuntimeResult]:
     for _ in range(repeats):
         for ms, proc in _run_file_merges(file_merge_dirs, merge_cmd):
-            assert ms.outcome != MergeOutcome.FAIL
+            assert ms.outcome != conts.MergeOutcome.FAIL
             parse_time, merge_time, total_time = _parse_runtimes(proc.stdout)
 
             merge_commit = fileutils.extract_commit_sha(ms.merge_dir)
@@ -214,7 +190,7 @@ def runtime_benchmark(
                 for fp in [ms.base_file, ms.left_file, ms.right_file]
             ]
 
-            yield RuntimeResult(
+            yield conts.RuntimeResult(
                 merge_commit=merge_commit,
                 base_blob=base_blob,
                 left_blob=left_blob,

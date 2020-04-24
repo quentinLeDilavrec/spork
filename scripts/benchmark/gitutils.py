@@ -7,63 +7,27 @@ import itertools
 import pathlib
 import shutil
 import contextlib
+import subprocess
+
 from typing import List, Optional, Mapping, Sequence, Tuple, Iterable, ContextManager
 
 import git
 import daiquiri
 
+from . import containers as conts
+
+START_CONFLICT = "<<<<<<<"
+MID_CONFLICT = "======="
+END_CONFLICT = ">>>>>>>"
+
 LOGGER = daiquiri.getLogger(__name__)
-
-
-@dataclasses.dataclass(frozen=True)
-class MergeScenario:
-    result: git.Commit
-    base: git.Commit
-    left: git.Commit
-    right: git.Commit
-
-    @staticmethod
-    def from_metainfo(repo: git.Repo, metainfo) -> "MergeScenario":
-        return MergeScenario(
-            result=repo.commit(metainfo.merge_commit),
-            base=repo.commit(metainfo.base_commit),
-            left=repo.commit(metainfo.left_commit),
-            right=repo.commit(metainfo.right_commit),
-        )
-
-
-@dataclasses.dataclass(frozen=True)
-class FileMerge:
-    result: git.Blob
-    base: Optional[git.Blob]
-    left: git.Blob
-    right: git.Blob
-    from_merge_scenario: MergeScenario
-
-    @staticmethod
-    def from_metainfo(repo: git.Repo, metainfo) -> "FileMerge":
-        ms = MergeScenario.from_metainfo(repo, metainfo)
-        result = ms.result.tree[str(metainfo.merge_filepath)]
-        base = ms.base.tree[str(metainfo.base_filepath)]
-        left = ms.left.tree[str(metainfo.left_filepath)]
-        right = ms.right.tree[str(metainfo.right_filepath)]
-        return FileMerge(
-            result=result, base=base, left=left, right=right, from_merge_scenario=ms
-        )
-
-
-class Revision(enum.Enum):
-    BASE = enum.auto()
-    LEFT = enum.auto()
-    RIGHT = enum.auto()
-    ACTUAL_MERGE = enum.auto()
 
 
 def extract_merge_scenarios(
     repo: git.Repo,
     merge_commit_shas: Optional[List[str]] = None,
     non_trivial: bool = False,
-) -> List[MergeScenario]:
+) -> List[conts.MergeScenario]:
     """Extract merge scenarios from a repo.
 
     Args:
@@ -104,7 +68,7 @@ def extract_merge_scenarios(
             )
             continue
 
-        scenario = MergeScenario(merge, base[0], left, right)
+        scenario = conts.MergeScenario(merge, base[0], left, right)
 
         if non_trivial and not extract_conflicting_files(repo, scenario):
             LOGGER.warning(f"Skipping trivial merge commit {merge.hexsha}")
@@ -120,34 +84,36 @@ def extract_merge_scenarios(
 
 
 def extract_all_conflicting_files(
-    repo: git.Repo, merge_scenarios: Sequence[MergeScenario],
-) -> Iterable[FileMerge]:
+    repo: git.Repo, merge_scenarios: Sequence[conts.MergeScenario],
+) -> Iterable[conts.FileMerge]:
     return itertools.chain.from_iterable(
         extract_conflicting_files(repo, ms) for ms in merge_scenarios
     )
 
 
 def extract_conflicting_files(
-    repo: git.Repo, merge_scenario: MergeScenario,
-) -> List[FileMerge]:
+    repo: git.Repo,
+    merge_scenario: conts.MergeScenario,
+    skip_conflict_markers: bool = True,
+) -> List[conts.FileMerge]:
     LOGGER.info(
-        f"Extracting conflicting files for merge {merge_scenario.result.hexsha}"
+        f"Extracting conflicting files for merge {merge_scenario.expected.hexsha}"
     )
 
     left = merge_scenario.left
     right = merge_scenario.right
     base = merge_scenario.base
-    result = merge_scenario.result
+    expected = merge_scenario.expected
     merge_idx: git.IndexFile = repo.index.from_tree(repo, base, left, right)
 
-    left_result_diff = {
-        diff.a_blob.hexsha: diff.b_blob for diff in left.diff(result) if diff.a_blob
+    left_expected_diff = {
+        diff.a_blob.hexsha: diff.b_blob for diff in left.diff(expected) if diff.a_blob
     }
-    right_result_diff = {
-        diff.a_blob.hexsha: diff.b_blob for diff in right.diff(result) if diff.a_blob
+    right_expected_diff = {
+        diff.a_blob.hexsha: diff.b_blob for diff in right.diff(expected) if diff.a_blob
     }
-    base_result_diff = {
-        diff.a_blob.hexsha: diff.b_blob for diff in base.diff(result) if diff.a_blob
+    base_expected_diff = {
+        diff.a_blob.hexsha: diff.b_blob for diff in base.diff(expected) if diff.a_blob
     }
 
     file_merges = []
@@ -156,34 +122,62 @@ def extract_conflicting_files(
         rev_map = {}
         for stage, blob in blobs:
             if stage == 1:
-                insert(blob, Revision.BASE, base_result_diff, rev_map)
+                insert(blob, conts.Revision.BASE, base_expected_diff, rev_map)
             elif stage == 2:
-                insert(blob, Revision.LEFT, left_result_diff, rev_map)
+                insert(blob, conts.Revision.LEFT, left_expected_diff, rev_map)
             elif stage == 3:
-                insert(blob, Revision.RIGHT, right_result_diff, rev_map)
+                insert(blob, conts.Revision.RIGHT, right_expected_diff, rev_map)
             else:
                 raise ValueError("unknown stage " + stage)
 
-        if rev_map[Revision.ACTUAL_MERGE] == None:
+        if rev_map[conts.Revision.ACTUAL_MERGE] == None:
             LOGGER.warning("Could not find actual merge, skipping: " + str(rev_map))
             continue
-        if Revision.LEFT not in rev_map or Revision.RIGHT not in rev_map:
+        if conts.Revision.LEFT not in rev_map or conts.Revision.RIGHT not in rev_map:
             # this is a delete file/edit file conflict, we can't do much about that
             LOGGER.warning("Skipping delete/edit file conflict: " + str(rev_map))
             continue
 
         file_merge = _to_file_merge(rev_map, merge_scenario)
 
-        if not str(file_merge.result.name).endswith(".java"):
-            LOGGER.warning(f"{file_merge.result.name} is not a Java file, skipping")
+        if not str(file_merge.expected.name).endswith(".java"):
+            LOGGER.warning(f"{file_merge.expected.name} is not a Java file, skipping")
+            continue
+        if skip_conflict_markers and _has_conflict_marker(file_merge):
+            LOGGER.warning(
+                f"Found conflict markers in scenario {expected.hexsha}/{file_merge.expected.hexsha}, skipping"
+            )
             continue
 
         file_merges.append(file_merge)
 
     if not file_merges:
-        LOGGER.info(f"No file merges required for merge commit {result.hexsha}")
+        LOGGER.info(f"No file merges required for merge commit {expected.hexsha}")
 
     return file_merges
+
+
+def _has_conflict_marker(file_merge: conts.FileMerge) -> bool:
+    return any(
+        map(
+            _contains_conflict_marker,
+            [file_merge.expected, file_merge.base, file_merge.left, file_merge.right],
+        )
+    )
+
+
+def _contains_conflict_marker(blob: git.Blob) -> bool:
+    if blob == None:
+        return False
+
+    lines = blob.data_stream[-1].read().decode(encoding="utf8").split("\n")
+    return any(
+        [
+            line
+            for line in lines
+            if line.startswith(START_CONFLICT) or line.startswith(END_CONFLICT)
+        ]
+    )
 
 
 @contextlib.contextmanager
@@ -239,26 +233,26 @@ def saved_git_head(repo: git.Repo) -> ContextManager[None]:
 
 
 def _to_file_merge(
-    rev_map: Mapping[Revision, git.Blob], ms: MergeScenario
-) -> FileMerge:
-    base = rev_map[Revision.BASE] if Revision.BASE in rev_map else None
-    left = rev_map[Revision.LEFT]
-    right = rev_map[Revision.RIGHT]
-    result = rev_map[Revision.ACTUAL_MERGE]
-    return FileMerge(
-        base=base, left=left, right=right, result=result, from_merge_scenario=ms
+    rev_map: Mapping[conts.Revision, git.Blob], ms: conts.MergeScenario
+) -> conts.FileMerge:
+    base = rev_map[conts.Revision.BASE] if conts.Revision.BASE in rev_map else None
+    left = rev_map[conts.Revision.LEFT]
+    right = rev_map[conts.Revision.RIGHT]
+    expected = rev_map[conts.Revision.ACTUAL_MERGE]
+    return conts.FileMerge(
+        base=base, left=left, right=right, expected=expected, from_merge_scenario=ms
     )
 
 
 def insert(blob, rev, diff_map, rev_map):
     rev_map[rev] = blob
     if blob.hexsha in diff_map:
-        result_blob = diff_map[blob.hexsha]
+        expected_blob = diff_map[blob.hexsha]
         assert (
-            Revision.ACTUAL_MERGE not in rev_map
-            or rev_map[Revision.ACTUAL_MERGE] == result_blob
+            conts.Revision.ACTUAL_MERGE not in rev_map
+            or rev_map[conts.Revision.ACTUAL_MERGE] == expected_blob
         )
-        rev_map[Revision.ACTUAL_MERGE] = result_blob
+        rev_map[conts.Revision.ACTUAL_MERGE] = expected_blob
 
 
 def clone_repo(
@@ -288,11 +282,32 @@ def clone_repo(
 
     if not repo_path.exists():
         url = f"https://github.com/{qualname}.git"
+        LOGGER.info(f"Cloning repository from {url}")
         repo = git.Repo.clone_from(url, str(repo_path))
+        LOGGER.info(f"Repository cloned to {repo_path}")
     else:
+        LOGGER.info(f"Using existing local repository at {repo_path}")
         repo = git.Repo(str(repo_path))
 
     return repo
+
+
+def hash_object(path: pathlib.Path) -> str:
+    """Compute the SHA1 hash of a blob using Git's hash-object command.
+
+    Args:
+        path: Path to a file.
+    Returns:
+        The SHA1 hash of the content of the file.
+    """
+    if not path.is_file():
+        raise FileNotFoundError(f"Not a file: {path}")
+
+    proc = subprocess.run(["git", "hash-object", str(path)], capture_output=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"hash-object exited non-zero on {path}")
+
+    return proc.stdout.decode().strip()
 
 
 def _get_blob(repo: git.Repo, commit_sha: str, blob_sha: str) -> git.Blob:
