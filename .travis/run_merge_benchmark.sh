@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 echo "Compiling spork"
 mvn clean compile package -DskipTests
@@ -24,4 +24,10 @@ python3 -m benchmark.cli run-git-merges \
   -g inria \
   --merge-commits buildable_spoon_merges.txt \
   --build \
-  --output spoon_git_merges_improved.csv
+  --output results.csv
+
+cat results.csv
+
+if [ "$(cat results.csv | grep False)" ]; then exit 1; fi
+
+exit 0
