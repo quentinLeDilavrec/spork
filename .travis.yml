@@ -11,6 +11,10 @@ matrix:
       os: linux
       python: 3.8
       script: ".travis/run_merge_benchmark.sh"
+      addons:
+         apt:
+            packages:
+               - openjdk-8-jdk
     - language: java
       os: linux
       jdk: openjdk8

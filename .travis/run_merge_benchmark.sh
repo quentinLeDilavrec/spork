@@ -1,5 +1,9 @@
 #! /bin/bash
 
+echo "Setting JAVA_HOME"
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+echo $JAVA_HOME
+
 echo "Compiling spork"
 mvn clean compile package -DskipTests
 spork_jar_path="$PWD/$(ls target/spork*.jar)"
