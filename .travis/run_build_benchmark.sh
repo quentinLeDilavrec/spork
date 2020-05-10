@@ -25,6 +25,7 @@ mv spork ~/
 
 export PATH="$PATH:$TRAVIS_BUILD_DIR/.travis"
 ls -l "$TRAVIS_BUILD_DIR"/.travis
+echo $PATH
 
 pkgextractor
 sootdiff
