@@ -6,6 +6,7 @@ if [ ! -f ~/jars/sootdiff.jar ]; then
   wget https://github.com/slarse/sootdiff/releases/download/spork-experiment/sootdiff-1.0-jar-with-dependencies.jar -o ~/jars/sootdiff.jar
   wget https://github.com/slarse/duplicate-checkcast-remover/releases/download/v1.0.0/duplicate-checkcast-remover-1.0.0-jar-with-dependencies.jar -o ~/jars/duplicate-checkcast-remover.jar
   wget https://github.com/slarse/pkgextractor/releases/download/v1.0.0/pkgextractor-1.0.0-jar-with-dependencies.jar -o ~/jars/pkgextractor.jar
+  ls ~/jars
 fi
 
 echo "Setting JAVA_HOME"
@@ -28,6 +29,7 @@ pkgextractor
 sootdiff
 duplicate-checkcast-remover
 
+exit
 cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
 
 git checkout benchmark
