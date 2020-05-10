@@ -16,7 +16,6 @@ chmod 700 spork
 mv spork ~/
 
 cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
-cat "$TRAVIS_BUILD_DIR/.travis/gitattributes" >> ~/.gitattributes
 
 git checkout benchmark
 
@@ -27,6 +26,7 @@ python3 -m benchmark.cli run-git-merges \
   -r spoon \
   -g inria \
   --merge-commits buildable_spoon_merges.txt \
+  --merge-drivers spork \
   --build \
   --output results.csv
 
