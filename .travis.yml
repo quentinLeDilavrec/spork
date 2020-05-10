@@ -17,11 +17,6 @@ matrix:
          apt:
             packages:
                - openjdk-8-jdk
-    - name: "Unit tests"
-      language: java
-      os: linux
-      jdk: openjdk8
-      after_success: bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email: false

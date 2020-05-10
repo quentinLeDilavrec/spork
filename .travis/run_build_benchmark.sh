@@ -32,6 +32,5 @@ python3 -m benchmark.cli run-git-merges \
 
 cat results.csv
 
-if [ "$(cat results.csv | grep False)" ]; then exit 1; fi
-
-exit 0
+diff expected_build_results.csv results.csv
+exit $?
