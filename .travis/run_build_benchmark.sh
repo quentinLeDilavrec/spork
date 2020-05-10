@@ -22,7 +22,9 @@ echo "java -jar $spork_jar_path" '$@' >> spork
 chmod 700 spork
 mv spork ~/
 
-cp "$TRAVIS_BUILD_DIR/.travis/{sootdiff,pkgextractor,duplicate-checkcast-remover}" ~/
+cp "$TRAVIS_BUILD_DIR/.travis/sootdiff" ~/
+cp "$TRAVIS_BUILD_DIR/.travis/pkgextractor" ~/
+cp "$TRAVIS_BUILD_DIR/.travis/duplicate-checkcast-remover" ~/
 
 cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
 
