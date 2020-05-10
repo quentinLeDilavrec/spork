@@ -36,7 +36,7 @@ python3 -m benchmark.cli run-git-merges \
   -g inria \
   --merge-commits buildable_spoon_merges.txt \
   --merge-drivers spork \
-  --build \
+  --eval-dir evaluation-directory \
   --output results.csv
 
 cat results.csv
