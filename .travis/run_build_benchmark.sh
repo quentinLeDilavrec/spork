@@ -27,6 +27,8 @@ export PATH="$PATH:$TRAVIS_BUILD_DIR/.travis"
 ls -l "$TRAVIS_BUILD_DIR"/.travis
 echo $PATH
 
+python3 -c 'import subprocess; subprocess.run(["pkgextractor"])'
+
 pkgextractor
 sootdiff
 duplicate-checkcast-remover
