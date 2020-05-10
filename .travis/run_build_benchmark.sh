@@ -27,7 +27,8 @@ export PATH="$PATH:$TRAVIS_BUILD_DIR/.travis"
 ls -l "$TRAVIS_BUILD_DIR"/.travis
 echo $PATH
 
-python3 -c 'import subprocess; subprocess.run(["pkgextractor"])'
+python3 -c 'import subprocess; print(subprocess.run(["pkgextractor"]))'
+python3 -c 'import os; print(os.getenv("PATH"))'
 
 pkgextractor
 sootdiff
