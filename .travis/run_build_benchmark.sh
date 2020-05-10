@@ -24,6 +24,7 @@ chmod 700 spork
 mv spork ~/
 
 export PATH="$PATH:$TRAVIS_BUILD_DIR/.travis"
+ls -l "$TRAVIS_BUILD_DIR"/.travis
 
 pkgextractor
 sootdiff
