@@ -26,6 +26,11 @@ cp "$TRAVIS_BUILD_DIR/.travis/sootdiff" ~/
 cp "$TRAVIS_BUILD_DIR/.travis/pkgextractor" ~/
 cp "$TRAVIS_BUILD_DIR/.travis/duplicate-checkcast-remover" ~/
 
+# try each command
+pkgextractor
+sootdiff
+duplicate-checkcast-remover
+
 cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
 
 git checkout benchmark
