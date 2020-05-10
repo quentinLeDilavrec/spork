@@ -1,5 +1,13 @@
 #! /bin/bash
 
+if [ ! -d ~/jars ]; then
+  mkdir -p ~/jars
+  echo "Fetching jars"
+  wget https://github.com/slarse/sootdiff/releases/download/spork-experiment/sootdiff-1.0-jar-with-dependencies.jar -o ~/jars/sootdiff.jar
+  wget https://github.com/slarse/duplicate-checkcast-remover/releases/download/v1.0.0/duplicate-checkcast-remover-1.0.0-jar-with-dependencies.jar -o ~/jars/duplicate-checkcast-remover.jar
+  wget https://github.com/slarse/pkgextractor/releases/download/v1.0.0/pkgextractor-1.0.0-jar-with-dependencies.jar -o ~/jars/pkgextractor.jar
+fi
+
 echo "Setting JAVA_HOME"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 echo $JAVA_HOME
@@ -12,8 +20,9 @@ echo "Creating spork executable"
 echo "#! /bin/bash" > spork
 echo "java -jar $spork_jar_path" '$@' >> spork
 chmod 700 spork
-
 mv spork ~/
+
+cp "$TRAVIS_BUILD_DIR/.travis/{sootdiff,pkgextractor,duplicate-checkcast-remover}" ~/
 
 cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
 
