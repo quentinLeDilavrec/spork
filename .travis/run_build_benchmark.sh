@@ -25,8 +25,10 @@ mv spork ~/
 cp "$TRAVIS_BUILD_DIR/.travis/sootdiff" ~/
 cp "$TRAVIS_BUILD_DIR/.travis/pkgextractor" ~/
 cp "$TRAVIS_BUILD_DIR/.travis/duplicate-checkcast-remover" ~/
+ls ~/
 
 # try each command
+chmod 700 ~/pkgextractor ~/sootdiff ~/duplicate-checkcast-remover
 pkgextractor
 sootdiff
 duplicate-checkcast-remover
