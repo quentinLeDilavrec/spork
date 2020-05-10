@@ -22,13 +22,8 @@ echo "java -jar $spork_jar_path" '$@' >> spork
 chmod 700 spork
 mv spork ~/
 
-cp "$TRAVIS_BUILD_DIR/.travis/sootdiff" ~/
-cp "$TRAVIS_BUILD_DIR/.travis/pkgextractor" ~/
-cp "$TRAVIS_BUILD_DIR/.travis/duplicate-checkcast-remover" ~/
-ls ~/
+export PATH="$PATH:$TRAVIS_BUILD_DIR/.travis"
 
-# try each command
-chmod 700 ~/pkgextractor ~/sootdiff ~/duplicate-checkcast-remover
 pkgextractor
 sootdiff
 duplicate-checkcast-remover
