@@ -1,6 +1,6 @@
 #! /bin/bash
 
-if [ ! -d ~/jars ]; then
+if [ ! -f ~/jars/sootdiff.jar ]; then
   mkdir -p ~/jars
   echo "Fetching jars"
   wget https://github.com/slarse/sootdiff/releases/download/spork-experiment/sootdiff-1.0-jar-with-dependencies.jar -o ~/jars/sootdiff.jar
