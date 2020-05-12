@@ -9,6 +9,8 @@ if [ ! -f ~/jars/sootdiff.jar ]; then
   ls ~/jars
 fi
 
+mkdir -p ~/.local/bin
+
 echo "Setting JAVA_HOME"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 echo $JAVA_HOME
