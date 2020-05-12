@@ -24,8 +24,6 @@ chmod 700 spork
 
 cp "$TRAVIS_BUILD_DIR"/.travis/{pkgextractor,sootdiff,duplicate-checkcast-remover} spork ~/.local/bin
 
-cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
-
 git checkout benchmark
 
 cp "$TRAVIS_BUILD_DIR"/merge_driver_config/gitconfig ~/.gitconfig
