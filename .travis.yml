@@ -12,6 +12,7 @@ matrix:
          apt:
             packages:
                - openjdk-8-jdk
+               - openjfx
 
 notifications:
   email: false
