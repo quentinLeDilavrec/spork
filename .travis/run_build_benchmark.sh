@@ -37,6 +37,10 @@ ls -l ~/.local/bin
 
 cd scripts || exit
 
+# required for running the git merges
+git config --global user.email example@example.com
+git config --global user.name example
+
 python3 -m pip install -r requirements.txt
 python3 -m benchmark.cli run-git-merges \
   -r spoon \
