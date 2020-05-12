@@ -21,14 +21,13 @@ echo "Creating spork executable"
 echo "#! /bin/bash" > spork
 echo "java -jar $spork_jar_path" '$@' >> spork
 chmod 700 spork
-mv spork ~/
+mv spork ~/.local/bin
 
-export PATH="$PATH:$TRAVIS_BUILD_DIR/.travis"
-ls -l "$TRAVIS_BUILD_DIR"/.travis
-echo $PATH
+mv "$TRAVIS_BUILD_DIR"/.travis/pkgextractor ~/.local/bin
+mv "$TRAVIS_BUILD_DIR"/.travis/sootdiff ~/.local/bin
+mv "$TRAVIS_BUILD_DIR"/.travis/duplicate-checkcast-remover ~/.local/bin
 
-python3 -c 'import subprocess; print(subprocess.run(["pkgextractor"]))'
-python3 -c 'import os; print(os.getenv("PATH"))'
+ls -l ~/.local/bin
 
 pkgextractor
 sootdiff
