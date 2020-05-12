@@ -1,2 +1,2 @@
 #! /bin/bash
-java -jar ~/jars/duplicate-checkcast-remover.jar $@
+"$JAVA_HOME"/bin/java -jar ~/jars/duplicate-checkcast-remover.jar $@

@@ -1,2 +1,2 @@
 #! /bin/bash
-java -jar ~/jars/sootdiff.jar $@
+"$JAVA_HOME"/bin/java -jar ~/jars/sootdiff.jar $@
