@@ -1,5 +1,7 @@
 #! /bin/bash
 
+export SPORK_CI=1
+
 if [ ! -f ~/jars/sootdiff.jar ]; then
   mkdir -p ~/jars
   echo "Fetching jars"
