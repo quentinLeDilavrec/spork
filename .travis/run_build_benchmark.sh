@@ -21,21 +21,17 @@ echo "Creating spork executable"
 echo "#! /bin/bash" > spork
 echo "java -jar $spork_jar_path" '$@' >> spork
 chmod 700 spork
-mv spork ~/.local/bin
 
-mv "$TRAVIS_BUILD_DIR"/.travis/pkgextractor ~/.local/bin
-mv "$TRAVIS_BUILD_DIR"/.travis/sootdiff ~/.local/bin
-mv "$TRAVIS_BUILD_DIR"/.travis/duplicate-checkcast-remover ~/.local/bin
-
-ls -l ~/.local/bin
-
-pkgextractor
-sootdiff
-duplicate-checkcast-remover
+cp "$TRAVIS_BUILD_DIR"/.travis/{pkgextractor,sootdiff,duplicate-checkcast-remover} spork ~/.local/bin
 
 cat "$TRAVIS_BUILD_DIR/.travis/gitconfig" >> ~/.gitconfig
 
 git checkout benchmark
+
+cp "$TRAVIS_BUILD_DIR"/merge_driver_config/gitconfig ~/.gitconfig
+cp "$TRAVIS_BUILD_DIR"/merge_driver_config/filemergelocator ~/.local/bin
+
+ls -l ~/.local/bin
 
 cd scripts || exit
 
