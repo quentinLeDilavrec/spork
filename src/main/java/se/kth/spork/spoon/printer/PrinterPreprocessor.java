@@ -54,9 +54,6 @@ public class PrinterPreprocessor extends CtScanner {
 
         element.putMetadata(GLOBAL_CONFLICT_MAP_KEY, Collections.unmodifiableMap(globalContentConflicts));
 
-        // FIXME Temporary fix for bug in Spoon. See method javadoc. Remove once fixed in Spoon.
-        handleIncorrectExplicitPackages(element);
-
         @SuppressWarnings("unchecked")
         List<ContentConflict> conflicts = (List<ContentConflict>) element.getMetadata(ContentConflict.METADATA_KEY);
 
@@ -65,43 +62,6 @@ public class PrinterPreprocessor extends CtScanner {
         }
 
         super.scan(element);
-    }
-
-    /**
-     * There's a bug in Spoon that causes packages that should be implicit to be explicit. There's another bug
-     * that sometimes attaches the wrong package to references that don't have an explicit package in the source
-     * code. This method attempts to mark all such occasions of packages implicit, so they are not reflected in the
-     * final output.
-     *
-     * See https://github.com/kth/spork/issues/94
-     *
-     * For each package reference attached to a type reference, mark as implicit if:
-     *
-     * 1. The package reference refers to the package of the current compilation unit.
-     * 2. The type has been explicitly imported.
-     * 3. All types in the package have been imported with a *
-     *
-     * @param element An element.
-     */
-    private void handleIncorrectExplicitPackages(CtElement element) {
-        if (element instanceof CtPackageReference) {
-            CtPackageReference pkgRef = (CtPackageReference)  element;
-            String pkgName = pkgRef.getQualifiedName();
-            CtElement parent = element.getParent();
-            if (pkgName.equals(activePackage) || pkgRef.getSimpleName().isEmpty()) {
-                element.setImplicit(true);
-            } else if (parent instanceof CtTypeReference) {
-                String parentQualName = ((CtTypeReference<?>) parent).getQualifiedName();
-
-                for (String imp : importStatements) {
-                    if (imp.equals(parentQualName) || imp.endsWith("*")
-                            && pkgName.equals(imp.substring(0, imp.length() - 2))) {
-                        element.setImplicit(true);
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     /**
